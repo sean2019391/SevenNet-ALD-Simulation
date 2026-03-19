@@ -1,0 +1,1366 @@
+LAMMPS (29 Aug 2024 - Development - patch_29Aug2024-671-g3041443e5f)
+OMP_NUM_THREADS environment is not set. Defaulting to 1 thread. (src/comm.cpp:99)
+  using 1 OpenMP thread(s) per MPI task
+# ---------- Initialization
+units 		metal
+boundary 	p p p
+atom_style 	charge		# electrostatics에 유용
+
+# ---------- load structure file
+variable T_temp equal 5000
+read_data C_done_${T_temp}.data
+read_data C_done_5000.data
+Reading data file ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0404967 8.0404967 8.0404967)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  216 atoms
+  reading velocities ...
+  216 velocities
+  read_data CPU = 0.001 seconds
+	# one of three ways to specify simulation box --> create_box, read_restart
+
+# ----- Force field
+mass 1 12.011			# 탄소, Carbon
+pair_style tersoff		# Tersoff = interatomic interaction에 유용. 특히 Carbon, Silicon, Boron Nitride
+pair_coeff * * BNC.tersoff C	# Tersoff Force Field 적용
+Reading tersoff potential file BNC.tersoff with DATE: 2013-03-21
+
+# ----- Variables
+variable MAX_strain_abs equal 0.1	# Strain = Amount of deformation experienced by body in directio of applied force
+variable strain_incre equal 0.0001
+variable MAXcount equal "ceil(v_MAX_strain_abs/v_strain_incre)+1"	# Number of Strain steps = Round up 최고압력/압력증가값
+	# gives amount of strain each increment
+	# MAXcount = 1001
+
+# ----- Initial Minimization
+min_style cg						   # 똑같이 Conjugate Gradient
+minimize 1.0e-10 1.0e-10 100000 1000000			   # tolerance value = 1.0e-10 , maximum force evaluation = 1,000,000
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Your simulation uses code contributions which should be cited:
+
+- Type Label Framework: https://doi.org/10.1021/acs.jpcb.3c08419
+
+@Article{Gissinger24,
+ author = {Jacob R. Gissinger, Ilia Nikiforov, Yaser Afshar, Brendon Waters, Moon-ki Choi, Daniel S. Karls, Alexander Stukowski, Wonpil Im, Hendrik Heinz, Axel Kohlmeyer, and Ellad B. Tadmor},
+ title = {Type Label Framework for Bonded Force Fields in LAMMPS},
+ journal = {J. Phys. Chem. B},
+ year =    2024,
+ volume =  128,
+ number =  13,
+ pages =   {3282--3297}
+}
+
+CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE-CITE
+
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 4.1
+  ghost atom cutoff = 4.1
+  binsize = 2.05, bins = 7 7 7
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair tersoff, perpetual
+      attributes: full, newton on
+      pair build: full/bin/atomonly
+      stencil: full/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 4.336 | 4.336 | 4.336 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+         0   1293.1417     -1862.0802      0             -1826.1426     -17382.988    
+      1421   1293.1417     -1895.7733      0             -1859.8356     -10781.347    
+Loop time of 1.45159 on 1 procs for 1421 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1862.08019921367  -1895.77325939902  -1895.77325950478
+  Force two-norm initial, final = 89.871886 4.0369452
+  Force max component initial, final = 44.211065 2.4444833
+  Final line search alpha, max atom move = 1.9958502e-05 4.8788226e-05
+  Iterations, force evaluations = 1421 14783
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 1.4044     | 1.4044     | 1.4044     |   0.0 | 96.75
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.024142   | 0.024142   | 0.024142   |   0.0 |  1.66
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.02301    |            |       |  1.59
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            784 ave         784 max         784 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6776 ave        6776 max        6776 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6776
+Ave neighs/atom = 31.37037
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+variable Lx_tmp equal lx		# 교수님 질문: 왜 굳이 이렇게 두번에 썼나?
+variable Lx0 equal ${Lx_tmp}
+variable Lx0 equal 12.520248199133
+
+variable dLx equal "v_Lx0*v_strain_incre"		   # incremental change in the box length with incremental strain
+variable dtoMin equal "v_Lx0*v_MAX_strain_abs"		   # total change in box length with maximum strain
+
+dump d all custom 10 tensile_${T_temp}.trj type x y z	   # 10 스텝마다 output
+dump d all custom 10 tensile_5000.trj type x y z	   
+
+# ----- Start loop
+label looplabel					# label = can "jumped" to
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+0.97681630673506 1.25518517598096
+Per MPI rank memory allocation (min/avg/max) = 3.211 | 3.211 | 3.211 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      1421   1293.1417     -1895.7733      0             -1859.8356     -10781.347    
+0.97681630673506 1.25518517598096
+      1422   1293.1417     -1895.7733      0             -1859.8356     -10781.347    
+Loop time of 0.000122184 on 1 procs for 1 steps with 216 atoms
+
+Performance: 707.130 ns/day, 0.034 hours/ns, 8184.378 timesteps/s, 1.768 Matom-step/s
+97.4% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00010953 | 0.00010953 | 0.00010953 |   0.0 | 89.65
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.573e-06  | 1.573e-06  | 1.573e-06  |   0.0 |  1.29
+Output  | 3.335e-06  | 3.335e-06  | 3.335e-06  |   0.0 |  2.73
+Modify  | 6.19e-06   | 6.19e-06   | 6.19e-06   |   0.0 |  5.07
+Other   |            | 1.552e-06  |            |       |  1.27
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6726 ave        6726 max        6726 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6726
+Ave neighs/atom = 31.138889
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 3.10862446895044e-15 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 3.10862446895044e-15 -8.77672805326286 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 3.10862446895044e-15 -8.77672805326286 0.97681630673506 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 3.10862446895044e-15 -8.77672805326286 0.97681630673506 1.25518517598096 >> outC11_${T_temp}.data
+shell echo 3.10862446895044e-15 -8.77672805326286 0.97681630673506 1.25518517598096 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0417487 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 4.336 | 4.336 | 4.336 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      1422   1293.1417     -1895.7687      0             -1859.8311     -17798.086    
+      2126   1293.1417     -1896.1649      0             -1860.2273     -13276.671    
+Loop time of 0.804416 on 1 procs for 704 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+      -1895.7687450044  -1896.16488382728  -1896.16488385462
+  Force two-norm initial, final = 3.8623345 3.226236
+  Force max component initial, final = 1.0689018 1.4174606
+  Final line search alpha, max atom move = 0.00013778017 0.00019529797
+  Iterations, force evaluations = 704 8299
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.77584    | 0.77584    | 0.77584    |   0.0 | 96.45
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.012137   | 0.012137   | 0.012137   |   0.0 |  1.51
+Output  | 0.0043814  | 0.0043814  | 0.0043814  |   0.0 |  0.54
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.01206    |            |       |  1.50
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6726 ave        6726 max        6726 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6726
+Ave neighs/atom = 31.138889
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.49117020102964 1.18219097593579
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2126   1293.1417     -1896.1649      0             -1860.2273     -13276.671    
+1.49117020102964 1.18219097593579
+      2127   1293.1417     -1896.1649      0             -1860.2273     -13276.671    
+Loop time of 0.00010605 on 1 procs for 1 steps with 216 atoms
+
+Performance: 814.710 ns/day, 0.029 hours/ns, 9429.514 timesteps/s, 2.037 Matom-step/s
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 9.4022e-05 | 9.4022e-05 | 9.4022e-05 |   0.0 | 88.66
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.562e-06  | 1.562e-06  | 1.562e-06  |   0.0 |  1.47
+Output  | 3.205e-06  | 3.205e-06  | 3.205e-06  |   0.0 |  3.02
+Modify  | 5.839e-06  | 5.839e-06  | 5.839e-06  |   0.0 |  5.51
+Other   |            | 1.422e-06  |            |       |  1.34
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6740 ave        6740 max        6740 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6740
+Ave neighs/atom = 31.203704
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000100000000003098 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000100000000003098 -8.77854112895658 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000100000000003098 -8.77854112895658 1.49117020102964 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000100000000003098 -8.77854112895658 1.49117020102964 1.18219097593579 >> outC11_${T_temp}.data
+shell echo 0.000100000000003098 -8.77854112895658 1.49117020102964 1.18219097593579 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0430007 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2127   1293.1417     -1896.1603      0             -1860.2227     -17452.363    
+      2367   1293.1417     -1896.2475      0             -1860.3099     -8662.4417    
+Loop time of 0.284429 on 1 procs for 240 steps with 216 atoms
+
+99.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.16026725136   -1896.2475074054  -1896.24750755903
+  Force two-norm initial, final = 4.2473258 5.1098824
+  Force max component initial, final = 2.0939331 2.1314191
+  Final line search alpha, max atom move = 4.7956475e-06 1.0221535e-05
+  Iterations, force evaluations = 240 2904
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.27451    | 0.27451    | 0.27451    |   0.0 | 96.51
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0041965  | 0.0041965  | 0.0041965  |   0.0 |  1.48
+Output  | 0.0014819  | 0.0014819  | 0.0014819  |   0.0 |  0.52
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.004241   |            |       |  1.49
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6740 ave        6740 max        6740 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6740
+Ave neighs/atom = 31.203704
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.20621972716442 0.492293371259285
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2367   1293.1417     -1896.2475      0             -1860.3099     -8662.4417    
+1.20621972716442 0.492293371259285
+      2368   1293.1417     -1896.2475      0             -1860.3099     -8662.4417    
+Loop time of 0.000109344 on 1 procs for 1 steps with 216 atoms
+
+Performance: 790.167 ns/day, 0.030 hours/ns, 9145.449 timesteps/s, 1.975 Matom-step/s
+100.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 9.7757e-05 | 9.7757e-05 | 9.7757e-05 |   0.0 | 89.40
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.563e-06  | 1.563e-06  | 1.563e-06  |   0.0 |  1.43
+Output  | 3.275e-06  | 3.275e-06  | 3.275e-06  |   0.0 |  3.00
+Modify  | 5.518e-06  | 5.518e-06  | 5.518e-06  |   0.0 |  5.05
+Other   |            | 1.231e-06  |            |       |  1.13
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6748 ave        6748 max        6748 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6748
+Ave neighs/atom = 31.240741
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000200000000003309 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000200000000003309 -8.77892364610662 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000200000000003309 -8.77892364610662 1.20621972716442 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000200000000003309 -8.77892364610662 1.20621972716442 0.492293371259285 >> outC11_${T_temp}.data
+shell echo 0.000200000000003309 -8.77892364610662 1.20621972716442 0.492293371259285 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0442527 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2368   1293.1417     -1896.243       0             -1860.3054     -15675.016    
+      2800   1293.1417     -1896.376       0             -1860.4384     -8391.5259    
+Loop time of 0.519442 on 1 procs for 432 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.24303696799  -1896.37600228906  -1896.37600232848
+  Force two-norm initial, final = 4.4454619 4.2278933
+  Force max component initial, final = 1.7941784 2.1617763
+  Final line search alpha, max atom move = 2.3567783e-06 5.0948274e-06
+  Iterations, force evaluations = 432 5273
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.50145    | 0.50145    | 0.50145    |   0.0 | 96.54
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0076627  | 0.0076627  | 0.0076627  |   0.0 |  1.48
+Output  | 0.0026527  | 0.0026527  | 0.0026527  |   0.0 |  0.51
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.007674   |            |       |  1.48
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6748 ave        6748 max        6748 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6748
+Ave neighs/atom = 31.240741
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.10416309454861 0.932527175772231
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2800   1293.1417     -1896.376       0             -1860.4384     -8391.5259    
+1.10416309454861 0.932527175772231
+      2801   1293.1417     -1896.376       0             -1860.4384     -8391.5259    
+Loop time of 0.000114662 on 1 procs for 1 steps with 216 atoms
+
+Performance: 753.519 ns/day, 0.032 hours/ns, 8721.285 timesteps/s, 1.884 Matom-step/s
+100.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00010292 | 0.00010292 | 0.00010292 |   0.0 | 89.76
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.562e-06  | 1.562e-06  | 1.562e-06  |   0.0 |  1.36
+Output  | 3.135e-06  | 3.135e-06  | 3.135e-06  |   0.0 |  2.73
+Modify  | 5.698e-06  | 5.698e-06  | 5.698e-06  |   0.0 |  4.97
+Other   |            | 1.342e-06  |            |       |  1.17
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6752 ave        6752 max        6752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6752
+Ave neighs/atom = 31.259259
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000300000000003076 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000300000000003076 -8.77951852929854 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000300000000003076 -8.77951852929854 1.10416309454861 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000300000000003076 -8.77951852929854 1.10416309454861 0.932527175772231 >> outC11_${T_temp}.data
+shell echo 0.000300000000003076 -8.77951852929854 1.10416309454861 0.932527175772231 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0455048 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2801   1293.1417     -1896.3714      0             -1860.4338     -16354.695    
+      2864   1293.1417     -1896.3999      0             -1860.4623     -8712.1619    
+Loop time of 0.0734404 on 1 procs for 63 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.37143800039  -1896.39986403647  -1896.39986420247
+  Force two-norm initial, final = 4.0516957 5.6404143
+  Force max component initial, final = 1.1516429 2.6987
+  Final line search alpha, max atom move = 7.2352103e-05 0.00019525662
+  Iterations, force evaluations = 63 750
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.070819   | 0.070819   | 0.070819   |   0.0 | 96.43
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0010968  | 0.0010968  | 0.0010968  |   0.0 |  1.49
+Output  | 0.00037937 | 0.00037937 | 0.00037937 |   0.0 |  0.52
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.001146   |            |       |  1.56
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6752 ave        6752 max        6752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6752
+Ave neighs/atom = 31.259259
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+0.823196150049245 0.913227042082618
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2864   1293.1417     -1896.3999      0             -1860.4623     -8712.1619    
+0.823196150049245 0.913227042082618
+      2865   1293.1417     -1896.3999      0             -1860.4623     -8712.1619    
+Loop time of 0.000107903 on 1 procs for 1 steps with 216 atoms
+
+Performance: 800.719 ns/day, 0.030 hours/ns, 9267.583 timesteps/s, 2.002 Matom-step/s
+100.1% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 9.6295e-05 | 9.6295e-05 | 9.6295e-05 |   0.0 | 89.24
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.532e-06  | 1.532e-06  | 1.532e-06  |   0.0 |  1.42
+Output  | 3.175e-06  | 3.175e-06  | 3.175e-06  |   0.0 |  2.94
+Modify  | 5.67e-06   | 5.67e-06   | 5.67e-06   |   0.0 |  5.25
+Other   |            | 1.231e-06  |            |       |  1.14
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6754 ave        6754 max        6754 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6754
+Ave neighs/atom = 31.268519
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000400000000003287 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000400000000003287 -8.77962900093738 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000400000000003287 -8.77962900093738 0.823196150049245 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000400000000003287 -8.77962900093738 0.823196150049245 0.913227042082618 >> outC11_${T_temp}.data
+shell echo 0.000400000000003287 -8.77962900093738 0.823196150049245 0.913227042082618 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0467568 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2865   1293.1417     -1896.3954      0             -1860.4578     -17611.426    
+      2916   1293.1417     -1896.4011      0             -1860.4635     -14079.17     
+Loop time of 0.0569908 on 1 procs for 51 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.39542224346  -1896.40110295275  -1896.40110312597
+  Force two-norm initial, final = 3.8289494 3.5224444
+  Force max component initial, final = 1.5964366 2.0187193
+  Final line search alpha, max atom move = 0.00019350129 0.00039062478
+  Iterations, force evaluations = 51 576
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.054927   | 0.054927   | 0.054927   |   0.0 | 96.38
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.00083862 | 0.00083862 | 0.00083862 |   0.0 |  1.47
+Output  | 0.00031459 | 0.00031459 | 0.00031459 |   0.0 |  0.55
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.0009105  |            |       |  1.60
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6754 ave        6754 max        6754 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6754
+Ave neighs/atom = 31.268519
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.70713205542164 1.11314629305018
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2916   1293.1417     -1896.4011      0             -1860.4635     -14079.17     
+1.70713205542164 1.11314629305018
+      2917   1293.1417     -1896.4011      0             -1860.4635     -14079.17     
+Loop time of 0.000102455 on 1 procs for 1 steps with 216 atoms
+
+Performance: 843.297 ns/day, 0.028 hours/ns, 9760.383 timesteps/s, 2.108 Matom-step/s
+100.5% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 9.1208e-05 | 9.1208e-05 | 9.1208e-05 |   0.0 | 89.02
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.522e-06  | 1.522e-06  | 1.522e-06  |   0.0 |  1.49
+Output  | 3.075e-06  | 3.075e-06  | 3.075e-06  |   0.0 |  3.00
+Modify  | 5.428e-06  | 5.428e-06  | 5.428e-06  |   0.0 |  5.30
+Other   |            | 1.222e-06  |            |       |  1.19
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6752 ave        6752 max        6752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6752
+Ave neighs/atom = 31.259259
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000500000000003276 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000500000000003276 -8.77963473669431 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000500000000003276 -8.77963473669431 1.70713205542164 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000500000000003276 -8.77963473669431 1.70713205542164 1.11314629305018 >> outC11_${T_temp}.data
+shell echo 0.000500000000003276 -8.77963473669431 1.70713205542164 1.11314629305018 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0480088 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      2917   1293.1417     -1896.3963      0             -1860.4587     -18454.622    
+      3191   1293.1417     -1896.5915      0             -1860.6539     -10378.698    
+Loop time of 0.319337 on 1 procs for 274 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.39627738206  -1896.59148550176  -1896.59148565488
+  Force two-norm initial, final = 4.3717588 1.1995455
+  Force max component initial, final = 2.0185155 0.30157418
+  Final line search alpha, max atom move = 0.00032381513 9.7654284e-05
+  Iterations, force evaluations = 274 3226
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.30817    | 0.30817    | 0.30817    |   0.0 | 96.50
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0046856  | 0.0046856  | 0.0046856  |   0.0 |  1.47
+Output  | 0.0017484  | 0.0017484  | 0.0017484  |   0.0 |  0.55
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.004738   |            |       |  1.48
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6752 ave        6752 max        6752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6752
+Ave neighs/atom = 31.259259
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.39476659550808 0.89993124028027
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3191   1293.1417     -1896.5915      0             -1860.6539     -10378.698    
+1.39476659550808 0.89993124028027
+      3192   1293.1417     -1896.5915      0             -1860.6539     -10378.698    
+Loop time of 0.000112909 on 1 procs for 1 steps with 216 atoms
+
+Performance: 765.218 ns/day, 0.031 hours/ns, 8856.690 timesteps/s, 1.913 Matom-step/s
+100.1% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00010136 | 0.00010136 | 0.00010136 |   0.0 | 89.77
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.532e-06  | 1.532e-06  | 1.532e-06  |   0.0 |  1.36
+Output  | 3.064e-06  | 3.064e-06  | 3.064e-06  |   0.0 |  2.71
+Modify  | 5.699e-06  | 5.699e-06  | 5.699e-06  |   0.0 |  5.05
+Other   |            | 1.252e-06  |            |       |  1.11
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6752 ave        6752 max        6752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6752
+Ave neighs/atom = 31.259259
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000600000000003487 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000600000000003487 -8.78051613729109 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000600000000003487 -8.78051613729109 1.39476659550808 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000600000000003487 -8.78051613729109 1.39476659550808 0.89993124028027 >> outC11_${T_temp}.data
+shell echo 0.000600000000003487 -8.78051613729109 1.39476659550808 0.89993124028027 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0492608 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3192   1293.1417     -1896.5868      0             -1860.6492     -16460.14     
+      3491   1293.1417     -1896.6879      0             -1860.7503     -10855.579    
+Loop time of 0.367829 on 1 procs for 299 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.58680634677  -1896.68791572879   -1896.6879158807
+  Force two-norm initial, final = 3.3998875 2.3189939
+  Force max component initial, final = 0.84216564 0.7604394
+  Final line search alpha, max atom move = 0.00025684121 0.00019531217
+  Iterations, force evaluations = 299 3681
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.35526    | 0.35526    | 0.35526    |   0.0 | 96.58
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0053458  | 0.0053458  | 0.0053458  |   0.0 |  1.45
+Output  | 0.0018581  | 0.0018581  | 0.0018581  |   0.0 |  0.51
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.005367   |            |       |  1.46
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            768 ave         768 max         768 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6752 ave        6752 max        6752 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6752
+Ave neighs/atom = 31.259259
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.50821332844016 0.740666047148434
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3491   1293.1417     -1896.6879      0             -1860.7503     -10855.579    
+1.50821332844016 0.740666047148434
+      3492   1293.1417     -1896.6879      0             -1860.7503     -10855.579    
+Loop time of 0.000111718 on 1 procs for 1 steps with 216 atoms
+
+Performance: 773.376 ns/day, 0.031 hours/ns, 8951.109 timesteps/s, 1.933 Matom-step/s
+100.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 9.965e-05  | 9.965e-05  | 9.965e-05  |   0.0 | 89.20
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.582e-06  | 1.582e-06  | 1.582e-06  |   0.0 |  1.42
+Output  | 3.375e-06  | 3.375e-06  | 3.375e-06  |   0.0 |  3.02
+Modify  | 5.89e-06   | 5.89e-06   | 5.89e-06   |   0.0 |  5.27
+Other   |            | 1.221e-06  |            |       |  1.09
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            764 ave         764 max         764 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6746 ave        6746 max        6746 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6746
+Ave neighs/atom = 31.231481
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000700000000003476 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000700000000003476 -8.78096257352175 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000700000000003476 -8.78096257352175 1.50821332844016 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000700000000003476 -8.78096257352175 1.50821332844016 0.740666047148434 >> outC11_${T_temp}.data
+shell echo 0.000700000000003476 -8.78096257352175 1.50821332844016 0.740666047148434 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0505129 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3492   1293.1417     -1896.6833      0             -1860.7456     -15945.793    
+      3607   1293.1417     -1896.6946      0             -1860.757      -9162.4386    
+Loop time of 0.152691 on 1 procs for 115 steps with 216 atoms
+
+100.0% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.68325492719  -1896.69461549377  -1896.69461563188
+  Force two-norm initial, final = 3.6413041 1.8661576
+  Force max component initial, final = 0.86101049 0.87595324
+  Final line search alpha, max atom move = 5.5586005e-05 4.8690741e-05
+  Iterations, force evaluations = 115 1520
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.14756    | 0.14756    | 0.14756    |   0.0 | 96.64
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0021823  | 0.0021823  | 0.0021823  |   0.0 |  1.43
+Output  | 0.00068763 | 0.00068763 | 0.00068763 |   0.0 |  0.45
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.002261   |            |       |  1.48
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            764 ave         764 max         764 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6746 ave        6746 max        6746 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6746
+Ave neighs/atom = 31.231481
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.34175271876889 0.693750068928688
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3607   1293.1417     -1896.6946      0             -1860.757      -9162.4386    
+1.34175271876889 0.693750068928688
+      3608   1293.1417     -1896.6946      0             -1860.757      -9162.4386    
+Loop time of 0.000120471 on 1 procs for 1 steps with 216 atoms
+
+Performance: 717.185 ns/day, 0.033 hours/ns, 8300.753 timesteps/s, 1.793 Matom-step/s
+99.6% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00010524 | 0.00010524 | 0.00010524 |   0.0 | 87.36
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 2.023e-06  | 2.023e-06  | 2.023e-06  |   0.0 |  1.68
+Output  | 3.015e-06  | 3.015e-06  | 3.015e-06  |   0.0 |  2.50
+Modify  | 8.963e-06  | 8.963e-06  | 8.963e-06  |   0.0 |  7.44
+Other   |            | 1.232e-06  |            |       |  1.02
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            764 ave         764 max         764 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6746 ave        6746 max        6746 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6746
+Ave neighs/atom = 31.231481
+Neighbor list builds = 0
+Dangerous builds = 0
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000800000000003687 ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000800000000003687 -8.78099359088834 ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000800000000003687 -8.78099359088834 1.34175271876889 ${sigmayyGPa} >> outC11_${T_temp}.data
+shell echo 0.000800000000003687 -8.78099359088834 1.34175271876889 0.693750068928688 >> outC11_${T_temp}.data
+shell echo 0.000800000000003687 -8.78099359088834 1.34175271876889 0.693750068928688 >> outC11_5000.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+change_box all x delta 0.0 0.0012520248199133 remap units box	
+Changing box ...
+  orthogonal box = (-4.4797515 -4.4797515 -4.4797515) to (8.0517649 8.0404967 8.0404967)
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+Per MPI rank memory allocation (min/avg/max) = 5.593 | 5.593 | 5.593 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      3608   1293.1417     -1896.6899      0             -1860.7522     -15787.465    
+      4045   1293.1417     -1896.7832      0             -1860.8456     -9839.5967    
+Loop time of 0.555794 on 1 procs for 437 steps with 216 atoms
+
+99.8% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -1896.68985337737  -1896.78319213296  -1896.78319216111
+  Force two-norm initial, final = 3.5509252 1.091456
+  Force max component initial, final = 0.89658913 0.46888508
+  Final line search alpha, max atom move = 0.00010413655 4.8828073e-05
+  Iterations, force evaluations = 437 5517
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.53718    | 0.53718    | 0.53718    |   0.0 | 96.65
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0.0078945  | 0.0078945  | 0.0078945  |   0.0 |  1.42
+Output  | 0.0027104  | 0.0027104  | 0.0027104  |   0.0 |  0.49
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.008008   |            |       |  1.44
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            764 ave         764 max         764 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6746 ave        6746 max        6746 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6746
+Ave neighs/atom = 31.231481
+Neighbor list builds = 0
+Dangerous builds = 0
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+variable loopcounter loop ${MAXcount}
+variable loopcounter loop 1001
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable EPOTperatom equal pe/216		
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+WARNING: No fixes with time integration, atoms won't move (src/verlet.cpp:60)
+WARNING: Dump d includes no atom IDs and is not sorted by ID. This may complicate post-processing tasks or visualization (src/dump.cpp:219)
+1.5276565043368 0.744121236325917
+Per MPI rank memory allocation (min/avg/max) = 4.468 | 4.468 | 4.468 Mbytes
+   Step          Temp          E_pair         E_mol          TotEng         Press     
+      4045   1293.1417     -1896.7832      0             -1860.8456     -9839.5967    
+1.5276565043368 0.744121236325917
+      4046   1293.1417     -1896.7832      0             -1860.8456     -9839.5967    
+Loop time of 0.000120591 on 1 procs for 1 steps with 216 atoms
+
+Performance: 716.471 ns/day, 0.033 hours/ns, 8292.493 timesteps/s, 1.791 Matom-step/s
+100.3% CPU use with 1 MPI tasks x 1 OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.00010866 | 0.00010866 | 0.00010866 |   0.0 | 90.11
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 1.552e-06  | 1.552e-06  | 1.552e-06  |   0.0 |  1.29
+Output  | 3.025e-06  | 3.025e-06  | 3.025e-06  |   0.0 |  2.51
+Modify  | 6.019e-06  | 6.019e-06  | 6.019e-06  |   0.0 |  4.99
+Other   |            | 1.331e-06  |            |       |  1.10
+
+Nlocal:            216 ave         216 max         216 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:            764 ave         764 max         764 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+FullNghs:         6734 ave        6734 max        6734 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 6734
+Ave neighs/atom = 31.175926
+Neighbor list builds = 0
+Dangerous builds = 0

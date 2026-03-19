@@ -1,0 +1,75 @@
+# ---------- Initialization
+units metal
+boundary p p p
+atom_style charge
+
+
+# ----- Make Configuration
+lattice diamond 5.43 orient x 1 0 0 orient y 0 1 0 orient z 0 0 1
+region box block 0 4 0 4 0 4 units lattice
+create_box 1 box
+create_atoms 1 region box
+
+
+# ----- Force field
+mass 1 178.49
+
+pair_style       e3gnn  
+pair_coeff       * * /path/to/deployed_serial.pt Hf
+
+# pair_style reax/c
+# pair_coeff * * ffield.reax Si
+
+# Adjust control file settings if needed
+# variable reax_control equal "reaxff_control"
+# fix control all reax/c/bonds 100 controlfile ${reax_control}
+
+# ----- Simulation conditions
+variable MAX_temp equal 700
+variable temp_incre equal 100
+variable MAXcount equal "ceil(v_MAX_temp/v_temp_incre)"
+variable dt equal 0.001
+variable equiltime equal 3
+
+# ----- Obtain run totstep
+variable equil_totstep equal "round(v_equiltime / v_dt)"
+variable avg_totstep equal "round(0.7*v_equil_totstep)"
+
+# ----- Define thermal property print list
+variable p1 equal "step"
+variable p2 equal "temp"
+variable p3 equal "lx"
+variable p4 equal "press"
+fix 3 all print 10 "${p1} ${p2} ${p3} ${p4}" file thermo_thermalexpansioncoeff.txt
+
+# ----- Initial Minimization
+fix 1 all box/relax x 0.0 y 0.0 z 0.0
+min_style cg
+minimize 1.0e-20 1.0e-20 100000 1000000
+unfix 1
+
+variable Lx0K equal lx
+shell echo 0 ${Lx0K} >> out_thermalexpansioncoeff.data
+
+# ----- Run equilibration with NPT
+timestep ${dt}
+
+# ----- Start loop
+label looplabel
+variable loopcounter loop ${MAXcount}
+variable Tobj equal "v_loopcounter*v_temp_incre"
+
+velocity all create ${Tobj} 12345 mom yes dist gaussian
+fix 1 all npt temp ${Tobj} ${Tobj} 0.1 iso 0.0 0.0 1.0 drag 0.2
+variable lxtrace equal "lx"
+fix 2 all ave/time 1 ${avg_totstep} ${equil_totstep} v_lxtrace
+run ${equil_totstep}
+
+variable avgLX_tmp equal "f_2"
+variable avgLx equal ${avgLX_tmp}
+unfix 1
+unfix 2
+shell echo ${Tobj} ${avgLx} >> out_thermalexpansioncoeff.data
+
+next loopcounter
+jump in.Si_ReaxFF_thermalexpansioncoeff looplabel

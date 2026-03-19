@@ -1,0 +1,125 @@
+# ---------- Initialization
+units 		metal
+boundary 	p p p
+atom_style 	atomic
+
+# ----- Make Configuration
+lattice diamond 5.43 orient x 1 0 0 orient y 0 1 0 orient z 0 0 1
+	# style = diamond, scale = 5.43, keyword = origin = x,y,z, values = 0 0 1...
+region  box block 0 4 0 4 0 4 units lattice
+	# ID = box, style = block, bounds of blocks in all dimension = 040404 (args),
+create_box 1 box
+	# number of atom types = 1, region-ID = box
+create_atoms 1 region box
+	# type 1, style = region, args = box    여기서 1은 type label
+
+# ----- Force field
+mass 1 28.085
+	# atom type = 1, Silicon atom
+pair_style sw
+	# style = sw = computes 3-body Stillinger-Weber potential for energy of system of atoms
+pair_coeff * * Si.sw Si
+	# specify pairwise force field coefficient for one or more pairs of atom types
+	# pairwise force field = computational model that is used to describe the forces between atoms
+
+# ----- Simulation conditions
+variable MAX_temp equal 700
+variable temp_incre equal 100
+variable MAXcount equal "ceil(v_MAX_temp/v_temp_incre)"
+	# ceil() = smallest integer not less than its argument = round up
+	# MAXcount = 7
+variable dt equal 0.001 	# in terms of picosecond
+	# step바다 소요되는 시간
+variable equiltime equal 3 	# in terms of picosecond
+	# quilibrium에 머무르는 시간
+
+# ----- Obtain run totstep
+variable equil_totstep equal "round(v_equiltime / v_dt)"
+	# equilibrium에 머무르는 step 수
+	# 3 / 0.001 = 3000
+variable avg_totstep equal "round(0.7*v_equil_totstep)"
+	# round() = nearest integer to its argument
+	# 70%만 가져간다고 가정
+	# 3000 * 0.7 = 2100
+
+# ----- Define thermal property print list
+variable p1 equal "step"
+variable p2 equal "temp"
+variable p3 equal "lx"
+variable p4 equal "press"
+fix 3 all print 10 "${p1} ${p2} ${p3} ${p4}" file thermo_thermalexpansioncoeff.txt 
+	# fix ID group-ID print N string keyword value ....
+	# print every 10 steps
+
+# ----- Initial Minimization
+fix 1 all box/relax x 0.0 y 0.0 z 0.0
+	# fix ID group-ID box/relax keyword value...
+	# apply an external pressure or stress tensor to the simulation box during an energy minimization
+min_style cg
+	# min_style = minimalization algorithm = conjugate gradient = iteration으로 전의 결과값으로 새로운 search direction 계산
+minimize 1.0e-20 1.0e-20 100000 1000000
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval 
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+unfix 1
+variable Lx0K equal lx
+
+shell echo 0 ${Lx0K} >> out_thermalexpansioncoeff.data
+	# shell = execute the command
+	# echo = print the following arguments to the terminal or writes them to a file
+	# 0 = initial strain, {Lx0K} = initial box length in x-direction at 0K
+
+# ----- Run equilibration with NPT
+timestep ${dt}
+	# timestep = set the timestep size for subsequent MD simulation
+
+# ----- Start loop
+label looplabel
+	# label = unless a jump command was used previously, this does nothing
+	# looplabel is just a name
+variable loopcounter loop ${MAXcount}
+	# loopcounter = just a variable name
+	# loop (style) = sets the variable to take on integer values ranging from 1 to the value specified
+		#그래서 1부터 MAXcount까지 for loop 하는 것과 같다. Remember MAXcount = 7
+
+variable Tobj equal "v_loopcounter*v_temp_incre"
+	# Tobj = Temperature Object = (1~7)*temperature_increase 
+		# temperature increase each step up to 7 steps
+
+velocity all create ${Tobj} 12345 mom yes dist gaussian
+	# set velocities of all atoms in 
+	# create = generate an ensemble of velocities using a random number generator at specified temperature
+	# mom yes = momentum yes = linear momentum is zeroed
+	# dist gaussian = gaussian (normal) distribution --> mean of 0 and sigma scaled to produce the requested temperature
+fix 1 all npt temp ${Tobj} ${Tobj} 0.1 iso 0.0 0.0 1.0 drag 0.2 
+	# npt = number of particles, pressure, temperature
+	# temp (initial temperature) (final temperature) (damping temperature) --> temperature remains constant, 0.1만큼 왔다갔다
+	# iso (initial pressure) (final pressure) (damping pressure) --> pressure remains constant, 1만큼 왔다갔다
+	# drag 0.2 = oscillation 방지를 위해 fluctuation of pressure and temperature 더 완만하게 만든다 --> stabilize to avoid oscillation
+variable lxtrace equal "lx" 
+fix 2 all ave/time 1 ${avg_totstep} ${equil_totstep} v_lxtrace
+	# ave/time = every few time steps, average them over longe timescale
+	  # 1 = Sample variable v_lxtrace every 1 timestep
+	  # {avg_totstep} = 2100 = number of timesteps over which data is averged
+	  # {equil_totstep} = 3000 = total number of timesteps during which the averaging will be performed 
+	# v_lxtrace = variable that is being averaged
+run ${equil_totstep} 
+	# run simulation for {equil_totstep}=3000 timesteps
+
+variable avgLX_tmp equal "f_2" 
+	# output of fix 2 = the average value of lxtrace 
+variable avgLx equal ${avgLX_tmp} 
+unfix 1
+unfix 2 
+shell echo ${Tobj} ${avgLx} >> out_thermalexpansioncoeff.data
+
+next loopcounter
+	# increments the value of a loop variable by one. 
+	# move up one number from 1~7
+jump in.Si_SW_thermalexpansioncoeffshort looplabel
+	# goes back to loop beginning
+
+

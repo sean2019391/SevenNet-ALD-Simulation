@@ -1,0 +1,111 @@
+# ---------- Initialization
+units 		metal
+boundary 	p p p
+atom_style 	charge		# electrostatics에 유용
+
+# ---------- load structure file
+variable T_temp equal 5000
+read_data C_done_${T_temp}.data
+	# one of three ways to specify simulation box --> create_box, read_restart
+
+# ----- Force field
+
+mass 1 178.49
+
+pair_style       e3gnn  
+pair_coeff       * * /path/to/deployed_serial.pt Hf
+
+
+# mass 1 12.011			# 탄소, Carbon
+# pair_style tersoff		# Tersoff = interatomic interaction에 유용. 특히 Carbon, Silicon, Boron Nitride
+# pair_coeff * * BNC.tersoff C	# Tersoff Force Field 적용
+
+# ----- Variables
+variable MAX_strain_abs equal 0.1	# Strain = Amount of deformation experienced by body in directio of applied force
+variable strain_incre equal 0.0001
+variable MAXcount equal "ceil(v_MAX_strain_abs/v_strain_incre)+1"	# Number of Strain steps = Round up 최고압력/압력증가값
+	# gives amount of strain each increment
+	# MAXcount = 1001
+
+# ----- Initial Minimization
+min_style cg						   # 똑같이 Conjugate Gradient
+minimize 1.0e-10 1.0e-10 100000 1000000			   # tolerance value = 1.0e-10 , maximum force evaluation = 1,000,000
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval 
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+variable Lx_tmp equal lx		# 교수님 질문: 왜 굳이 이렇게 두번에 썼나?
+variable Lx0 equal ${Lx_tmp}	
+
+variable dLx equal "v_Lx0*v_strain_incre"		   # incremental change in the box length with incremental strain
+variable dtoMin equal "v_Lx0*v_MAX_strain_abs"		   # total change in box length with maximum strain
+
+dump d all custom 10 tensile_${T_temp}.trj type x y z	   # 10 스텝마다 output
+
+# ----- Start loop
+label looplabel					# label = can "jumped" to
+variable loopcounter loop ${MAXcount}		
+	# loop = iterates over a series of commands a specific number of times
+	# 1부터 MAXcount (1001)까지 for loop
+	
+variable EPOT equal pe
+variable NP equal atoms
+variable EPOTperatom equal pe/${NP}		# potential energy per atom
+variable strain equal lx/v_Lx0-1.0		# strain = (current box length) / (initial box length)
+variable sigmaxxGPa equal -pxx*0.0001		# convert stress components to GPa (1 bar = 0.0001 GPa)
+	# pxx = pressure in x direction
+variable sigmayyGPa equal -pyy*0.0001
+	# pyy = pressure in y direction
+	# x,y 방향으로 압력
+
+# this run is necessary to make LAMMPS to compute pxx
+fix tmp all print 1 "${sigmaxxGPa} ${sigmayyGPa}" 	# just to ensure Pxx & Pyy computation
+	# print stress in x, y direction every 1 timestep
+fix tmp1 all setforce 0.0 0.0 0.0			# 원자에 가하는 힘을 0으로 바꿈. 계산중 혹시 모르니까
+	# setfofce = set each component of force on each atom to the specified values fx, fy, fz
+		# overwrite the forces acting on atoms --> zero out the foce on every atom in 3 direction
+run 1
+unfix tmp
+unfix tmp1
+
+shell echo ${strain} ${EPOTperatom} ${sigmaxxGPa} ${sigmayyGPa} >> outC11_${T_temp}.data
+	# logging simulation data related to strain, potential energy, and stress at each timestep or iteration
+
+change_box all x delta 0.0 ${dLx} remap units box	# 시뮬레이션 박스 크기를 x방향으로 dLx만큼 변환하고, 원자 크기를 새로운 박스에 맞춤
+	# change_box = alter dimentions or shape of the simulation box
+	# x = change is specifically being applied to x direction
+	# delta = specify value I want to add or subtract --> 0 = not making any change
+	# remap = remap the position of the atom after changing box to stay together with box
+	# units box = specifies that the change is being applied in box unit
+minimize 1.0e-10 1.0e-10 1000000 10000000
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval 
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+
+next loopcounter
+	# 1~1001 next number
+jump SELF looplabel
+	# jump file label
+	  # file = filename of new input script
+	  # label = optional label within file to jump to
+	# goes back to loop
+
+
+# 내가 지금 뭘 하고 있을까?
+# Tensile Strain Simulation = 장력 시뮬레이션
+# x방향으로 늘어날수록 탄소원자의 stress, potential energy를 측정
+# incremental strain으로 하고, 박스 길이가 늘어남에 따라 
+
+
+
+
+
+
+
+

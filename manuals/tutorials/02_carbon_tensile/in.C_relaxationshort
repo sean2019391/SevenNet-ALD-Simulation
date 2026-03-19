@@ -1,0 +1,92 @@
+# ---------- Initialization
+units 		metal
+boundary 	p p p
+atom_style 	charge         # electrostatic interaction에 사용됨
+
+# ---------- load structure file
+read_data C.data
+
+# ----- Force field
+mass 1 12.011                  #atomic mass가는 뜻으로, carbon을 뜻함
+pair_style tersoff             # carbon같은 covalent system의 atomic interaction에 사용됨
+pair_coeff * * BNC.tersoff C   # carbon에 파일을 지정
+		# specify pairwise force field coefficient for one or more pairs of atom types
+		# pairwise force field = computational model that is used to describe the forces between atoms
+
+# ----- Simulation conditions
+variable T_temp equal 0.1
+variable T_press equal 1
+variable dt equal 0.001
+variable Nrun equal 3000
+
+thermo_style custom step temp pe ke etotal press vol	
+	# thermo = list thermodynamic data, custom = list of keywords
+	# thermo_style custom = specifies the format of thermodynamic output
+thermo 10    	# 매 10 스텝마다 출력
+
+# ----- Density monitoring
+compute Cm all property/atom mass    # 각 원자의 질량을 계산
+compute Ctemp all temp               # 시스템의 온도를 출력
+compute Cmass all reduce sum c_Cm    # 각 원자의 질량의 총 합
+                                     # reduce = takes individual atom values and combines them into a single value
+                                     # c_ = compute에 의해 계산된 결과값
+
+variable qTemp equal c_Ctemp
+variable qmass equal c_Cmass
+variable Volume equal vol
+variable Navo equal 6.02e23          # Avogadro's number
+variable A2cm equal 1.0e-8           # Angstrom에서 centimeter로 변환
+variable rho equal c_Cmass/vol/${Navo}/${A2cm}/${A2cm}/${A2cm} # g/cm3
+				     # Mass of 1 C atom = Molar Mass / Avo
+
+# ----- Initial Minimization
+fix 1 all box/relax x 0.0 y 0.0 z 0.0
+	# fix = any operation that is applied to the system during timestepping or minimization
+	# fix ID Group-ID style args 이런식으로
+	# box/relax = external pressure or stress tensor to the simulation box during energy minimalization
+min_style cg			            # Conjugate Gradient = 매우 큰 시스템의 선형 방정식을 iterative하게 푸는 방식
+minimize 1.0e-20 1.0e-20 100000 1000000
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval 
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+unfix 1                                     # 끝나면 box relaxation 제거
+
+# ----- Run equilibration with dynamic
+timestep ${dt}
+velocity all create ${T_temp} 12345 mom yes dist gaussian      
+	# set velocities of all atoms in 
+	# create = generate an ensemble of velocities using a random number generator at specified temperature
+	# mom yes = momentum yes = linear momentum is zeroed
+	# dist gaussian = gaussian (normal) distribution --> mean of 0 and sigma scaled to produce the requested temperature
+
+fix Fdensity all ave/time 1 50 100 v_qTemp v_rho v_qmass v_Volume file out.rho_${T_temp}.txt
+	# ave/time = every few time steps, average them over longe timescale
+	# 1 step마다, 매번 50개씩 input value를 사용해서, 100 step마다 매번 평균값을 구해라
+	# out.rho.txt로 내보내기
+
+dump d all custom 10 dynamic.trj type x y z	  # dump = 10 step 마다 원자의 데이터를 출력
+fix 2 all nvt temp ${T_temp} ${T_temp} 0.1 	  # 계산된 T_temp 값으로 일정한 온도 유지, relaxation time = 0.1 time unit
+run ${Nrun}					  # Nrun만큼 시행
+unfix 2		#....? 교수님 질문
+
+fix 2 all npt temp 300 300 0.1 iso 1.013 1.013 1 drag 0.2    
+	# npt = number of particles, pressure, temperature
+	# temp (initial temperature) (final temperature) (damping temperature) --> temperature remains constant, 0.1만큼 왔다갔다
+	# iso (initial pressure) (final pressure) (damping pressure) --> pressure remains constant, 1만큼 왔다갔다
+	# drag 0.2 = oscillation 방지를 위해 fluctuation of pressure and temperature 더 완만하게 만든다 --> stabilize to avoid oscillation
+
+run ${Nrun}
+
+write_data C_done_${T_temp}.data
+
+
+# 지금 내가 뭐하고 있는거냐?
+# 온도, 질량, 밀도, 공간 과 같은 열역학적 데이터를 시간에 흐름에 따라 관찰
+# 50개의 탄소 원자 샘플로 100 스텝마다 원자의 성질을 관찰
+
+
+
+

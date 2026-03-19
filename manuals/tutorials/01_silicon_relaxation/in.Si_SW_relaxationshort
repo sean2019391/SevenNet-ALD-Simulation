@@ -1,0 +1,99 @@
+# ---------- Initialization
+units 		metal
+boundary 	p p p
+atom_style 	atomic
+
+# ----- Make Configuration
+lattice diamond 5.43 orient x 1 0 0 orient y 0 1 0 orient z 0 0 1    
+	# style = diamond, scale = 5.43, keyword = origin = x,y,z, values = 0 0 1...
+region box block 0 4 0 4 0 4 units lattice
+	# ID = box, style = block, bounds of blocks in all dimension = 040404 (args),
+create_box 1 box
+	# number of atom types = 1, region-ID = box
+create_atoms 1 region box
+	# type 1, style = region, args = box    여기서 1은 type label
+
+# ----- Force field
+mass 1 28.085
+	# atom type = 1, Silicon atom
+pair_style sw
+	# style = sw = computes 3-body Stillinger-Weber potential for energy of system of atoms
+pair_coeff * * Si.sw Si
+	# specify pairwise force field coefficient for one or more pairs of atom types
+	# pairwise force field = computational model that is used to describe the forces between atoms
+
+# ----- Simulation conditions
+variable T_temp equal 5000
+variable T_press equal 1
+variable dt equal 0.001
+variable Nrun equal 5000
+
+thermo_style custom step temp pe ke etotal press vol
+	# thermo = list thermodynamic data, custom = list of keywords
+thermo 10
+	# output thermodynamics every 10 steps
+
+# ----- Density monitoring
+compute Cm all property/atom mass	# store mass of each atom in Cm compute
+	# compute = stores atom attributes for each atom, property/atom = style name
+compute Ctemp all temp
+	# compute temperature of the system and store in Ctemp compute
+compute Cmass all reduce sum c_Cm
+	# reduce = takes individual atom values and combines them into a single value
+	# sum = add
+	# 즉, calculate the total mass by summing the mass of all atoms --> Cmass = total mass
+
+variable qTemp equal c_Ctemp
+variable qmass equal c_Cmass
+variable Volume equal vol
+variable Navo equal 6.02e23
+variable A2cm equal 1.0e-8
+variable rho equal c_Cmass/vol/${Navo}/${A2cm}/${A2cm}/${A2cm} # g/cm3
+	# Density formula
+
+# ----- Initial Minimization
+fix 1 all box/relax x 0.0 y 0.0 z 0.0
+	# fix = any operation that is applied to the system during timestepping or minimization
+	# fix ID Group-ID style args 이런식으로
+	# box/relax = external pressure or stress tensor to the simulation box during energy minimalization
+	
+min_style cg
+	# min_style = minimalization algorithm = conjugate gradient = iteration으로 전의 결과값으로 새로운 search direction 계산
+minimize 1.0e-20 1.0e-20 100000 1000000
+	# minimize = perform energy minimization of the system
+	# minimize etol ftol maxiter maxeval 
+		# etol = stopping tolereance for energy = 1.0e-20 = 이것보다 iteration사이 에너지 차이 적으면 멈춤 = target energy difference
+		# ftol = stopping tolerance for force = 1.0e-20 = target maximum force on any atom = 각 원자의 힘이 이것보다 작으면 멈춤
+		# maxiter = max iterations of minimizer = 100000 = minimization의 iteration의 한계 횟수
+		# maxeval = max number of force/energy evaluation = 100000 = if calculated forces acting on atoms reach 100000, it stops
+unfix 1
+	# stops fix command. stop minimization
+
+# ----- Run equilibration with dynamic
+timestep ${dt}
+velocity all create ${T_temp} 12345 mom yes dist gaussian
+	# set velocities of all atoms in 
+	# create = generate an ensemble of velocities using a random number generator at specified temperature
+	# mom yes = momentum yes = linear momentum is zeroed
+	# dist gaussian = gaussian (normal) distribution --> mean of 0 and sigma scaled to produce the requested temperature
+
+fix Fdensity all ave/time 1 5 10 v_qTemp v_rho v_qmass v_Volume file out.rho.txt
+	# ave/time = every few time steps, average them over longe timescale
+	# 1 step마다 input script를 사용, 매번 5번씩 input value를 사용해서, 10 step마다 매번 평균값을 구해라
+	# out.rho.txt로 내보내기
+
+dump d all custom 10 dynamic.trj type x y z
+	# dump ID group-ID style N file attribute1 attribute2....
+	# dump = snapshot of quantities to one or more files once every N stipsteps in a style
+	# custom = define exactly which properties of the atoms to input
+	# 10 = frequency (in timestep) at which the data will be written to file
+	# dynamic.trj = file name
+	# xyz의 값을 포함시킬것
+
+#fix 2 all nvt temp ${T_temp} ${T_temp} 0.1 
+fix 2 all npt temp ${T_temp} ${T_temp} 0.1 iso 1.013 1.013 1 drag 0.2
+	# npt = number of particles, pressure, temperature
+	# temp (initial temperature) (final temperature) (damping temperature) --> temperature remains constant, 0.1만큼 왔다갔다
+	# iso (initial pressure) (final pressure) (damping pressure) --> pressure remains constant, 1만큼 왔다갔다
+	# drag 0.2 = oscillation 방지를 위해 fluctuation of pressure and temperature 더 완만하게 만든다 --> stabilize to avoid oscillation
+ run ${Nrun}

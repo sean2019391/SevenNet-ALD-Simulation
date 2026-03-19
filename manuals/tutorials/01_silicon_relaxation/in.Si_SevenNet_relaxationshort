@@ -1,0 +1,61 @@
+# ---------- Initialization
+units metal
+boundary p p p
+atom_style charge
+
+# ----- Make Configuration
+lattice diamond 5.43 orient x 1 0 0 orient y 0 1 0 orient z 0 0 1    
+region box block 0 4 0 4 0 4 units lattice
+create_box 1 box
+create_atoms 1 region box
+
+# ----- Force field
+mass 1 178.49
+
+pair_style       e3gnn  
+pair_coeff       * * /path/to/deployed_serial.pt Hf
+
+# pair_style comb
+# pair_coeff * * ../potentials/ffield.comb Si
+# pair_style reax/c
+# pair_coeff * * ffield.reax Si
+
+
+# ----- Simulation conditions
+variable T_temp equal 5000
+variable T_press equal 1
+variable dt equal 0.001
+variable Nrun equal 5000
+
+thermo_style custom step temp pe ke etotal press vol
+thermo 10
+
+
+# ----- Density monitoring
+compute Cm all property/atom mass
+compute Ctemp all temp
+compute Cmass all reduce sum c_Cm
+
+variable qTemp equal c_Ctemp
+variable qmass equal c_Cmass
+variable Volume equal vol
+variable Navo equal 6.02e23
+variable A2cm equal 1.0e-8
+variable rho equal c_Cmass/vol/${Navo}/${A2cm}/${A2cm}/${A2cm}
+
+
+# ----- Initial Minimization
+fix 1 all box/relax x 0.0 y 0.0 z 0.0
+min_style cg
+minimize 1.0e-20 1.0e-20 100000 1000000
+unfix 1
+
+
+# ----- Run equilibration with dynamic
+timestep ${dt}
+velocity all create ${T_temp} 12345 mom yes dist gaussian
+
+fix Fdensity all ave/time 1 5 10 v_qTemp v_rho v_qmass v_Volume file out.rho.txt
+dump d all custom 10 dynamics.trj type x y z
+fix 2 all npt temp ${T_temp} ${T_temp} 0.1 iso 1.013 1.013 1 drag 0.2
+run ${Nrun}
